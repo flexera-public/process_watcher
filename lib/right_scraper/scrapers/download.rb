@@ -5,14 +5,14 @@
 # a copy of this software and associated documentation files (the
 # 'Software'), to deal in the Software without restriction, including
 # without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and to 
+# distribute, sublicense, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
 #
 # The above copyright notice and this permission notice shall be
 # included in all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, 
+# THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
 # EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
@@ -20,13 +20,12 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #++
-require 'right_scraper/scrapers/base'
+require File.expand_path(File.join(File.dirname(__FILE__), 'base'))
 require 'curb'
 require 'libarchive_ruby'
 
 module RightScale
-
-  class NewDownloadScraper < NewScraperBase
+  class DownloadScraper < ScraperBase
     def initialize(*args)
       super(*args)
       @done = false
