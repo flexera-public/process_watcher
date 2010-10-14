@@ -19,6 +19,7 @@ EOF
 
   s.rubyforge_project = "process_watcher"
 
+  s.requirements << 'win32-process ~> 0.6.1 gem on Windows systems'
   s.add_development_dependency('rspec', "~> 1.3")
 
   s.files         = `git ls-files`.split("\n")

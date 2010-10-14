@@ -1,31 +1,33 @@
-= RightScraper
+= ProcessWatcher
 
 == DESCRIPTION
 
 === Synopsis
 
-RightScraper provides a simple interface to download and keep repositories up-to-date
-using various protocols.  It has been decomposed into various modules so that you
-may specify only the functionality (and required libraries and gems) you require.
-This gem depends on all available RightScraper modules, enabling full support at the
-cost of requiring some systems administration work external to Ruby.
+ProcessWatcher is a cross platform interface for running subprocesses
+safely.  Unlike backticks or popen in Ruby 1.8, it will not invoke a
+shell.  Unlike system, it will permits capturing the output.  Unlike
+all native Ruby interfaces, it permits killing the subprocess if it
+consume too much space or takes too long.  And it is easier to use on
+Windows than rolling it by hand.
 
 == USAGE
 
 === Simple Example
 
  require 'rubygems'
- require 'right_scraper'
+ require 'process_watcher'
 
- scraper = RightScale::Scraper.new('/tmp')
- scraper.scrape(:type => :git, :url => 'git://github.com/rightscale/right_scraper.git')
+ # Will raise an exception if the exit code is not 0
+ output = ProcessWatcher.watch(command, [arguments])
+ output, status = ProcessWatcher.run(command, arg1, arg2, ...)
 
 == INSTALLATION
 
-This module for RightScraper can be installed by entering the following at the command
+This gem can be installed by entering the following at the command
 prompt:
 
- gem install right_scraper
+ gem install process_watcher
 
 == TESTING
 
@@ -38,7 +40,7 @@ The build can be tested using the RSpec gem.
 
 == LICENSE
 
-<b>RightScraper</b>
+<b>ProcessWatcher</b>
 
 Copyright:: Copyright (c) 2010 RightScale, Inc.
 
