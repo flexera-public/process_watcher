@@ -57,14 +57,14 @@ describe ProcessWatcher do
       ruby = "trap('INT', 'IGNORE'); puts 42; exit 42"
       lambda {
         ProcessWatcher.watch("ruby", ["-e", ruby], @dest_dir, 1, 2)
-      }.should raise_exception("Unknown error: 42 output 42\n")
+      }.should raise_exception(ProcessWatcher::NonzeroExitCode) {|e| e.exit_code.should == 42}
     end
 
     it 'should report timeouts' do
       ruby = "trap('INT', 'IGNORE'); puts 42; sleep 5"
       lambda {
         ProcessWatcher.watch("ruby", ["-e", ruby], @dest_dir, 1, 2)
-      }.should raise_exception("Timeout error")
+      }.should raise_exception(ProcessWatcher::TimeoutError)
     end
 
     it 'should report size exceeded' do
@@ -72,7 +72,7 @@ describe ProcessWatcher do
         "(File.join('#{@dest_dir}', 'test'), 'w') { |f| f.puts 'MORE THAN 2 CHARS' }; sleep 5 rescue nil"
       lambda {
         ProcessWatcher.watch("ruby", ["-e", ruby], @dest_dir, 1, -1)
-      }.should raise_exception("Command took too much space")
+      }.should raise_exception(ProcessWatcher::TooMuchSpaceError)
     end
 
     it 'should allow infinite size and timeout' do

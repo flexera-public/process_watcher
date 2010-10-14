@@ -24,48 +24,108 @@
 require 'shellwords'
 require File.expand_path(File.join(File.dirname(__FILE__), 'process_watcher', 'watcher'))
 
+# Convenient interface to process watching functionality.
 module ProcessWatcher
-  # Watch command, respecting @max_bytes and @max_seconds.
+  # Raised when a subprocess took too much time to run.
+  class TimeoutError < RuntimeError
+    # Describe the error.
+    def to_s
+      "Command took too much time"
+    end
+  end
+  # Raised when a subprocess consumed too much space while running.
+  class TooMuchSpaceError < RuntimeError
+    # Describe the error.
+    def to_s
+      "Command took too much space"
+    end
+  end
+  # Raised when a subprocess completed, but with a nonzero exit code.
+  class NonzeroExitCode < RuntimeError
+    # (Fixnum) exit code returned by the subprocess
+    attr_reader :exit_code
+    # (String) process output (hopefully explaining the situation)
+    attr_reader :output
+
+    def initialize(exit_code, output)
+      @exit_code = exit_code
+      @output = output
+    end
+
+    # Describe the error.
+    def to_s
+      "Exit code nonzero: #{@exit_code}\nOutput was #{@output}"
+    end
+  end
+  # Watch command, respecting +max_bytes+ and +max_seconds+.  Returns
+  # the output of the command, with STDOUT and STDERR interleaved, if
+  # the command completed successfully.  Will raise one of three
+  # errors in exceptional cases:
+  # TimeoutError:: if the process takes longer than max_seconds to run
+  # TooMuchSpaceError:: if the process consumes too much space in +dir+
+  # NonzeroExitCode:: if the process exits, but with a nonzero exit code
   #
-  # === Parameters ===
+  # This method accepts a block.  If that block exists, it is called
+  # at most twice with three arguments, +phase+, +command+ and
+  # +exception+.  The block is called once with +phase+ set to :begin,
+  # +command+ describing the command run, and +exception+ being nil.
+  # If execution completes normally, the block is called with +phase+
+  # set to :commit, +command+ again describing the command, and
+  # +exception+ nil.  If an abnormal termination occurs (for example,
+  # running out of space), the block is called with +phase+ set to
+  # :abort, +command+ again describing the command and +exception+ set
+  # to the exception in question.
+  #
+  # === Parameters
   # command(String):: command to run
   # args(Array):: arguments for the command
+  # dir(String):: directory to monitor (defaults to '.')
   # max_bytes(Integer):: maximum number of bytes to permit
+  #                      (defaults to no restriction)
   # max_seconds(Integer):: maximum number of seconds to permit to run
+  #                        (defaults to no restriction)
+  #
+  # === Block parameters
+  # phase(Keyword):: one of :begin, :commit, or :abort
+  # command(String):: description of what command is being run and
+  #                   where it is being run
+  # exception(Exception):: if non nil, the exception raised during
+  #                        the running of the subprocess
   #
   # === Returns
   # String:: output of command
-  def self.watch(command, args, dir='.', max_bytes=-1, max_seconds=-1, &callback)
+  def self.watch(command, args, dir='.', max_bytes=-1, max_seconds=-1) # :yields: phase, command, exception
     watcher = ProcessWatcher::Watcher.new(max_bytes, max_seconds)
     text = "in #{dir}, running #{command} #{Shellwords.join(args)}"
-    callback && callback.call(:begin, text)
+    block_given? and yield :begin, text, nil
     begin
       result = watcher.launch_and_watch(command, args, dir)
       if result.status == :timeout
-        raise "Timeout error"
+        raise TimeoutError, "command took too much time"
       elsif result.status == :size_exceeded
-        raise "Command took too much space"
+        raise TooMuchSpaceError, "command took too much space"
       elsif result.exit_code != 0
-        raise "Unknown error: #{result.exit_code} output #{result.output}"
+        raise NonzeroExitCode.new(result.exit_code, result.output), "nonzero exit code"
       else
         result.output
       end
     rescue => e
-      callback && callback.call(:abort, text, e)
+      block_given? and yield :abort, text, e
       raise
     else
-      callback && callback.call(:commit, text)
+      block_given? and yield :commit, text, nil
       result.output
     end
   end
 
-  # Spawn given process, wait for it to complete, and return its output The exit status
-  # of the process is available in the $? global. Functions similarly to the backtick
-  # operator, only it avoids invoking the command interpreter under operating systems
-  # that support fork-and-exec.
+  # Spawn given process, wait for it to complete, and return its
+  # output and the exit status of the process. Functions similarly to
+  # the backtick operator, only it avoids invoking the command
+  # interpreter under operating systems that support fork-and-exec.
   #
-  # This method accepts a variable number of parameters; the first param is always the
-  # command to run; successive parameters are command-line arguments for the process.
+  # This method accepts a variable number of parameters; the first
+  # param is always the command to run; successive parameters are
+  # command-line arguments for the process.
   #
   # === Parameters
   # cmd(String):: Name of the command to run

@@ -18,8 +18,10 @@ Windows than rolling it by hand.
  require 'rubygems'
  require 'process_watcher'
 
- # Will raise an exception if the exit code is not 0
+ # Will raise ProcessWatcher::NonzeroExitCode if the exit code is not 0
  output = ProcessWatcher.watch(command, [arguments])
+
+ # Will just run to completion and return the exit status
  output, status = ProcessWatcher.run(command, arg1, arg2, ...)
 
 == INSTALLATION
