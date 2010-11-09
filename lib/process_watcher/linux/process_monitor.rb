@@ -94,8 +94,8 @@ module ProcessWatcher
     # === Return
     # true:: Always return true
     def cleanup
-      @reader.join
-      @io.close
+      @reader.join if @reader
+      @io.close if @io
     end
 
   end
