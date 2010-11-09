@@ -76,14 +76,14 @@ module ProcessWatcher
               # ass, the real one should depend on the kernel's buffer
               # sizes.
               result = fdes.readpartial(4096)
-              yield(:output => result)
+              yield(:output => result) if block_given?
             end
           end unless array.nil?
           array[2].each do |fdes|
             # Do something with erroneous condition.
           end unless array.nil?
         end
-        yield(:exit_code => $?.exitstatus, :exit_status => $?)
+        yield(:exit_code => $?.exitstatus, :exit_status => $?) if block_given?
       end
 
       return @pid
