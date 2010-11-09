@@ -51,7 +51,7 @@ module ProcessWatcher
       @pid = fork do
         oldstderr = STDERR.clone
         pr.close
-        STDIN.reopen(File.open('/dev/null', 'r'))
+        STDIN.close
         STDOUT.reopen(pw)
         STDERR.reopen(pw)
         begin
