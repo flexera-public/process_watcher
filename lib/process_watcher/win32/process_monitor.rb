@@ -31,6 +31,42 @@ module ProcessWatcher
     include ::Windows::Synchronize
     include ::Windows::Handle
 
+    # Quacks like Process::Status, which we cannot instantiate ourselves because
+    # has no public new method.
+    class Status
+      # Process ID
+      attr_reader :pid
+
+      # Process exit code
+      attr_reader :exitstatus
+
+      # === Parameters
+      # pid(Integer):: Process ID.
+      #
+      # exitstatus(Integer):: Process exit code
+      def initialize(pid, exitstatus)
+        @pid = pid
+        @exitstatus = exitstatus
+      end
+
+      # Simulates Process::Status.exited?
+      #
+      # === Returns
+      # true in all cases because this object cannot be returned until the
+      # process exits
+      def exited?
+        return true
+      end
+
+      # Simulates Process::Status.success?
+      #
+      # === Returns
+      # true if the process returned zero as its exit code
+      def success?
+        return @exitstatus ? (0 == @exitstatus) : true;
+      end
+    end
+
     # Spawn given process and callback given block with output and exit code
     #
     # === Parameters
@@ -58,10 +94,12 @@ module ProcessWatcher
       case @handle
       when INVALID_HANDLE_VALUE
         # Something bad happened
-        yield(:exit_code => 1)
+        exit_code = 1
+        yield(:exit_code => exit_code, :exit_status => Status.new(@io.pid, exit_code))
       when 0
         # Process already finished
-        yield(:exit_code => 0)
+        exit_code = 0
+        yield(:exit_code => exit_code, :exit_status => Status.new(@io.pid, exit_code))
       else
         # Start output read
         @reader = Thread.new do
@@ -77,7 +115,7 @@ module ProcessWatcher
           else
             exit_code = 1
           end
-          yield(:exit_code => exit_code)
+          yield(:exit_code => exit_code, :exit_status => Status.new(@io.pid, exit_code))
         end
       end
       @io.pid
