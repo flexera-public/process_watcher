@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    process_watcher (0.1)
+    process_watcher (0.4)
 
 GEM
   remote: http://rubygems.org/
