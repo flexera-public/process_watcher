@@ -65,11 +65,14 @@ module ProcessWatcher
         stderr_r.close
         STDERR.reopen stderr_w
 
-        ObjectSpace.each_object(IO) do |io|
-          if ![STDIN, STDOUT, STDERR].include?(io)
-            io.close unless io.closed?
-          end
-        end
+        # AZURE FIX: figure out a safe way to close inherited handles without
+        # killing the parent's rails connection. the latter happens when you
+        # close all non-STDIO objects. fix the same code in right_popen
+        #ObjectSpace.each_object(IO) do |io|
+        #  if ![STDIN, STDOUT, STDERR].include?(io)
+        #    io.close unless io.closed?
+        #  end
+        #end
 
         begin
           exec(cmd, *args)
