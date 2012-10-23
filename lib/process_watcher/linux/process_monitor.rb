@@ -46,44 +46,90 @@ module ProcessWatcher
     def spawn(cmd, *args)
       args = args.map { |a| a.to_s } #exec only likes string arguments
 
-      #Run subprocess; capture its output using a pipe
-      pr, pw = IO::pipe
-      @pid = fork do
-        oldstderr = STDERR.clone
-        pr.close
-        STDIN.close
-        STDOUT.reopen(pw)
-        STDERR.reopen(pw)
+      # Run subprocess using synchronous pipes.
+      stdin_r,  stdin_w  = IO.pipe
+      stdout_r, stdout_w = IO.pipe
+      stderr_r, stderr_w = IO.pipe
+
+      [stdin_r, stdin_w,
+       stdout_r, stdout_w,
+       stderr_r, stderr_w].each {|fdes| fdes.sync = true}
+
+      pid = fork do
+        stdin_w.close
+        STDIN.reopen stdin_r
+
+        stdout_r.close
+        STDOUT.reopen stdout_w
+
+        stderr_r.close
+        STDERR.reopen stderr_w
+
+        # AZURE FIX: figure out a safe way to close inherited handles without
+        # killing the parent's rails connection. the latter happens when you
+        # close all non-STDIO objects. fix the same code in right_popen
+        #ObjectSpace.each_object(IO) do |io|
+        #  if ![STDIN, STDOUT, STDERR].include?(io)
+        #    io.close unless io.closed?
+        #  end
+        #end
+
         begin
           exec(cmd, *args)
+          raise 'should not get here'
         rescue
-          oldstderr.puts "Couldn't exec: #{$!}"
+          STDERR.puts "Couldn't exec: #{$!}"
         end
+        exit!
       end
 
-      #Monitor subprocess output and status in a dedicated thread
-      pw.close
-      @io = pr
+      # Monitor subprocess output and status in a dedicated thread
+      stdin_r.close
+      stdin_w.close  # not supporting input streaming; close immediately
+      stdout_w.close
+      stderr_w.close
+      @pid    = pid
       @reader = Thread.new do
+        # note that calling IO.select on pipes which have already had all
+        # of their output consumed can cause segfault (in Ubuntu?) so it is
+        # important to keep track of when all I/O has been consumed.
+        stdout_finished = false
+        stderr_finished = false
         status = nil
-        loop do
-          status = Process.waitpid(@pid, Process::WNOHANG)
-          break unless $?.nil?
-          array = select([@io], nil, [@io], 0.1)
-          array[0].each do |fdes|
-            unless fdes.eof?
-              # HACK HACK HACK 4096 is a magic number I pulled out of my
-              # ass, the real one should depend on the kernel's buffer
-              # sizes.
-              result = fdes.readpartial(4096)
-              yield(:output => result) if block_given?
+        while !(stdout_finished && stderr_finished)
+          begin
+            channels_to_watch = []
+            channels_to_watch << stdout_r unless stdout_finished
+            channels_to_watch << stderr_r unless stderr_finished
+            ready = IO.select(channels_to_watch, nil, nil, 0.1) rescue nil
+          rescue Errno::EAGAIN
+          ensure
+            status = Process.waitpid2(pid, Process::WNOHANG)
+            if status
+              stdout_finished = true
+              stderr_finished = true
             end
-          end unless array.nil?
-          array[2].each do |fdes|
-            # Do something with erroneous condition.
-          end unless array.nil?
+          end
+
+          if ready && ready.first.include?(stdout_r)
+            line = status ? stdout_r.gets(nil) : stdout_r.gets
+            if line
+              yield(:output => line) if block_given?
+            else
+              stdout_finished = true
+            end
+          end
+          if ready && ready.first.include?(stderr_r)
+            line = status ? stderr_r.gets(nil) : stderr_r.gets
+            if line
+              yield(:output => line) if block_given?
+            else
+              stderr_finished = true
+            end
+          end
         end
-        yield(:exit_code => $?.exitstatus, :exit_status => $?) if block_given?
+        status = Process.waitpid2(pid) if status.nil?
+        yield(:exit_code => status[1].exitstatus, :exit_status => status[1]) if block_given?
       end
 
       return @pid
@@ -95,7 +141,8 @@ module ProcessWatcher
     # true:: Always return true
     def cleanup
       @reader.join if @reader
-      @io.close if @io && !@io.closed?
+    ensure
+      @reader = nil
     end
 
   end

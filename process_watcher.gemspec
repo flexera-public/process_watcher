@@ -7,13 +7,13 @@ Gem::Specification.new do |s|
   s.version     = ProcessWatcher::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Graham Hughes", "Raphael Simon"]
-  s.email       = ["graham@rightscale.com"]
+  s.email       = ["raphael@rightscale.com"]
   s.homepage    = "http://rubygems.org/gems/process_watcher"
   s.summary     = %q{Cross platform interface to running subprocesses}
   s.description = <<-EOF
 ProcessWatcher is a cross platform interface for running subprocesses
 safely.  Unlike backticks or popen in Ruby 1.8, it will not invoke a
-shell.  Unlike system, it will permits capturing the output.  Unlike
+shell.  Unlike system, it will permit capturing the output.  Unlike
 rolling it by hand, it runs on Windows.
 EOF
 
