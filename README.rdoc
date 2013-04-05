@@ -11,6 +11,8 @@ all native Ruby interfaces, it permits killing the subprocess if it
 consume too much space or takes too long.  And it is easier to use on
 Windows than rolling it by hand.
 
+Maintained by the RightScale Teal Team
+
 == USAGE
 
 === Simple Example
